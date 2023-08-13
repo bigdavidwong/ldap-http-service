@@ -30,7 +30,7 @@ type Logger struct {
 var (
 	loggersMutex sync.Mutex
 	loggers      = make(map[string]*Logger)
-	logFormat    = "{timestamp} | {level} | {traceId} | {threadId} | {file}:{line} | {func} | {message}"
+	logFormat    = "{timestamp} | {level} | traceId={traceId} | {threadId} | {file}:{line} | {func} | {message}"
 	logLevel     = DEBUG
 )
 
