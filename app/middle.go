@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"ldap-http-service/lib/ers"
 	"ldap-http-service/lib/logger"
 	"ldap-http-service/lib/utils"
@@ -36,9 +37,6 @@ func JsonWithTraceId(c *gin.Context, httpCode, code int, msg string, data interf
 		log.Panicf("unsupported json body -> %v", err)
 	}
 
-	// 打印日志
-	log.Printf("Response: %+v\n", response)
-
 	c.JSON(httpCode, response)
 }
 
@@ -51,7 +49,7 @@ func processRequest(logger *logger.Logger) gin.HandlerFunc {
 			// 如果 Header 中不存在 "trace_id"，则自动生成
 			traceId = utils.GenUuid("req")
 		}
-		c.Set("traceId", traceId)
+		c.Set("trace_id", traceId)
 
 		// panic恢复和异常处理
 		defer func() {
@@ -73,16 +71,16 @@ func processRequest(logger *logger.Logger) gin.HandlerFunc {
 }
 
 // ginLog 日志中间件，记录请求概要信息
-func ginLog(logger *logger.Logger) gin.HandlerFunc {
+func ginLog(logger *logrus.Entry) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		logger.Info(c, fmt.Sprintf(
-			"收到新请求 -> client_ip=%s | method=%s | user_agent=%s | path=%s | params=%v",
-			c.ClientIP(),
-			c.Request.Method,
-			c.Request.UserAgent(),
-			c.Request.URL.Path,
-			c.Request.URL.Query(),
-		))
+		reqInfo := logrus.Fields{
+			"ip":         c.ClientIP(),
+			"method":     c.Request.Method,
+			"user_agent": c.Request.UserAgent(),
+			"path":       c.Request.URL.Path,
+			"params":     c.Request.URL.Query(),
+		}
+		logger.WithContext(c).WithFields(reqInfo).Info("收到http请求")
 		// 开始计时
 		startTime := time.Now()
 
@@ -90,12 +88,10 @@ func ginLog(logger *logger.Logger) gin.HandlerFunc {
 		c.Next()
 
 		// 计算请求处理时间
-		duration := time.Since(startTime)
-
-		logger.Info(c, fmt.Sprintf(
-			"请求已处理 -> status=%d | duration=%v",
-			c.Writer.Status(),
-			duration,
-		))
+		retInfo := logrus.Fields{
+			"status":   c.Writer.Status(),
+			"duration": time.Since(startTime),
+		}
+		logger.WithContext(c).WithFields(retInfo).Info("http请求已处理")
 	}
 }

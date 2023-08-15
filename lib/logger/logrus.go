@@ -1,6 +1,8 @@
 package logger
 
-import "github.com/sirupsen/logrus"
+import (
+	"github.com/sirupsen/logrus"
+)
 
 // LogTrace 定义结构体用于实现Hook方法执行traceID打印
 type LogTrace struct {
@@ -27,21 +29,19 @@ func (hook LogTrace) Fire(entry *logrus.Entry) error {
 }
 
 var (
-	GinLogger  *logrus.Logger
-	LdapLogger *logrus.Logger
+	GinLogger  *logrus.Entry
+	LdapLogger *logrus.Entry
 )
 
 func init() {
 	// 创建一个Hook跟踪日志
 	hook := NewLogTrace()
 
-	GinLogger = logrus.New()
-	GinLogger.SetFormatter(&logrus.JSONFormatter{})
-	GinLogger.SetLevel(logrus.InfoLevel)
-	GinLogger.AddHook(hook)
+	baseLogger := logrus.New()
+	baseLogger.SetFormatter(&logrus.JSONFormatter{})
+	baseLogger.AddHook(hook)
+	baseLogger.SetLevel(logrus.DebugLevel)
 
-	LdapLogger = logrus.New()
-	LdapLogger.SetFormatter(&logrus.JSONFormatter{})
-	LdapLogger.SetLevel(logrus.WarnLevel)
-	LdapLogger.AddHook(hook)
+	GinLogger = baseLogger.WithField("logger_name", "GinLogger")
+	LdapLogger = baseLogger.WithField("logger_name", "LdapLogger")
 }

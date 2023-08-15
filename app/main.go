@@ -22,7 +22,11 @@ func main() {
 
 	// 启动gin并配置中间件等
 	router := gin.New()
-	router.Use(processRequest(LOGGER), ginLog(LOGGER))
+	router.Use(processRequest(LOGGER), ginLog(logger.GinLogger))
+	gin.DefaultWriter = logger.GinLogger.Writer()
+	// 添加Gin的恢复中间件，以便在出现panic时恢复运行并记录错误
+	router.Use(gin.Recovery())
+
 	err = router.SetTrustedProxies([]string{"127.0.0.1"})
 	if err != nil {
 		return
