@@ -23,7 +23,7 @@ type ResponseData struct {
 }
 
 func JsonWithTraceId(c *gin.Context, httpCode, code int, msg string, data interface{}) {
-	traceId, _ := c.Value("traceId").(string)
+	traceId, _ := c.Value("trace_id").(string)
 	response := ResponseData{
 		Code:    code,
 		Message: msg,
@@ -44,12 +44,12 @@ func JsonWithTraceId(c *gin.Context, httpCode, code int, msg string, data interf
 func processRequest(logger *logrus.Entry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 在gin自带上下文中标记traceId
-		traceId := c.GetHeader("trace_id")
-		if traceId == "" {
+		traceID := c.GetHeader("trace_id")
+		if traceID == "" {
 			// 如果 Header 中不存在 "trace_id"，则自动生成
-			traceId = utils.GenUuid("req")
+			traceID = utils.GenUuid("req")
 		}
-		c.Set("trace_id", traceId)
+		c.Set("trace_id", traceID)
 
 		// panic恢复和异常处理
 		defer func() {
