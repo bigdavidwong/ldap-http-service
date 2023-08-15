@@ -2,13 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"ldap-http-service/lib/ers"
 	"ldap-http-service/lib/logger"
 	"ldap-http-service/lib/utils"
-	"log"
 	"net/http"
 	"runtime"
 	"runtime/debug"
@@ -34,14 +34,14 @@ func JsonWithTraceId(c *gin.Context, httpCode, code int, msg string, data interf
 	// 尝试序列化数据，校验是否有错误
 	_, err := json.Marshal(data)
 	if err != nil {
-		log.Panicf("unsupported json body -> %v", err)
+		logger.GinLogger.Panicf("unsupported json body -> %v", err)
 	}
 
 	c.JSON(httpCode, response)
 }
 
 // processRequest 处理请求中间件，包含错误集中处理、panic恢复以及traceId标记等
-func processRequest(logger *logger.Logger) gin.HandlerFunc {
+func processRequest(logger *logrus.Entry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 在gin自带上下文中标记traceId
 		traceId := c.GetHeader("trace_id")
@@ -57,8 +57,19 @@ func processRequest(logger *logger.Logger) gin.HandlerFunc {
 				_, file, line, _ := runtime.Caller(2)
 				logger.Warning(c, fmt.Sprintf("Recover from %s:%d -> %v", file, line, r))
 				logger.Debug(c, string(debug.Stack()))
-				// 使用类型断言检查错误是否为自定义错误
-				if customErr, ok := r.(ers.CustomErr); ok {
+
+				var err error
+				switch x := r.(type) {
+				case string:
+					err = errors.New(x)
+				case error:
+					err = x
+				default:
+					err = fmt.Errorf("unknown panic: %v", r)
+				}
+
+				var customErr ers.CustomErr
+				if errors.As(err, &customErr) {
 					JsonWithTraceId(c, customErr.HttpCode(), customErr.Code(), customErr.Error(), nil)
 				} else {
 					// 其他未知错误
@@ -66,6 +77,7 @@ func processRequest(logger *logger.Logger) gin.HandlerFunc {
 				}
 			}
 		}()
+
 		c.Next()
 	}
 }

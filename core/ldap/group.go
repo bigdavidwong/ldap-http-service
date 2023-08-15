@@ -96,7 +96,7 @@ func (l *ldapConnPool) getGroupMembers(conn *pooledLdapConn, groupId, groupIdTyp
 
 // 将用户添加到指定的群组
 func (l *ldapConnPool) addGroupMembers(groupDN string, userDNs ...string) error {
-	// 如果userDNs为空列表或nil，则直接返回
+	// 如果userDNs为空列表或nil，则直接返回，否则会导致群组清空！
 	if len(userDNs) == 0 || userDNs == nil {
 		return nil
 	}

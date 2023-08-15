@@ -1,9 +1,11 @@
 package ldap
 
 import (
+	"errors"
 	"fmt"
 	"github.com/go-ldap/ldap"
 	"ldap-http-service/lib/ers"
+	"ldap-http-service/lib/logger"
 	"ldap-http-service/lib/utils"
 	"reflect"
 	"strings"
@@ -58,16 +60,21 @@ func (b *BaseObject) ReturnBaseObj() *BaseObject {
 }
 
 // 校验sAMAccountName是否可用
-func (l *ldapConnPool) checkAvailability(name string) (bool, BaseObject) {
+func (l *ldapConnPool) checkAvailability(name string) (bool, *BaseObject, error) {
+	// 声明结构体，如果查到了已被使用的对象则将其属性反序列化至此结构体
+	var obj BaseObject
+
+	logger.LdapLogger.Debugf("正在校验用户名 `%s` 的可用性...", name)
+
 	// 如果为空，则返回异常
 	if name == "" {
-		panic(&ers.ForbiddenErr{Message: "name cannot be an empty string"})
+		return false, nil, &ers.ForbiddenErr{Message: "name cannot be an empty string"}
 	}
 
 	// 禁止系统预留的名字
 	var fbdName = []string{"service", "network service", "local service", "local system", "network", "local"}
 	if utils.InSlice(name, fbdName) {
-		panic(&ers.ForbiddenErr{Message: "this name is reserved for the system"})
+		return false, nil, &ers.ForbiddenErr{Message: fmt.Sprintf("name `%s` is reserved for the system", name)}
 	}
 
 	// ldap搜索是否存在匹配的邮箱地址前缀或sAMAccountName
@@ -77,20 +84,20 @@ func (l *ldapConnPool) checkAvailability(name string) (bool, BaseObject) {
 	}
 	filter = fmt.Sprintf("(|%s)", filter)
 
-	var obj BaseObject
 	err := l.searchLdapObject(&obj, filter, "")
 	// 如果获得了不存在错误，则代表其可用
-	if _, ok := err.(*ers.NotFoundError); ok {
-		return true, obj
+	var notFoundError *ers.NotFoundError
+	if errors.As(err, &notFoundError) {
+		return true, nil, nil
 	}
 
 	// 如果存在其他错误，则引发系统异常
 	if err != nil {
-		panic(err)
+		return false, nil, &ers.SystemErr{Message: err.Error()}
 	}
 
 	// 如果没有错误，代表找到了已有对象，触发已被使用异常
-	return false, obj
+	return false, &obj, nil
 }
 
 // 移动对象到OU

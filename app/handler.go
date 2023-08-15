@@ -19,7 +19,10 @@ func handleHealthz(c *gin.Context) {
 func handleCheckAvailability(c *gin.Context) {
 	name := c.Query("name")
 
-	ok, obj := ldap.CheckAvailability(name)
+	ok, obj, err := ldap.CheckAvailability(name)
+	if err != nil {
+		panic(err)
+	}
 	if ok {
 		JsonWithTraceId(c, http.StatusOK, 0, "ok", map[string]interface{}{})
 	} else {

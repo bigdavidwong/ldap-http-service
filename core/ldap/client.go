@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/go-ldap/ldap"
 	"ldap-http-service/lib/ers"
-	"ldap-http-service/lib/logger"
 	"sync"
 	"time"
 )
@@ -22,7 +21,6 @@ type ldapConnPool struct {
 	pool     chan *pooledLdapConn
 	counter  int
 	mutex    sync.Mutex
-	LOGGER   *logger.Logger
 }
 
 type pooledLdapConn struct {
@@ -70,13 +68,7 @@ func (l *ldapConnPool) getConn() (conn *pooledLdapConn, err error) {
 
 	select {
 	case conn = <-l.pool:
-		if conn.IsAlive() {
-			return conn, nil
-		} else {
-			conn.Conn.Close()
-			return l.newConn(conn.SN)
-		}
-
+		return l.returnLiveConn(conn)
 	default:
 		l.mutex.Lock()
 		defer l.mutex.Unlock()
@@ -90,18 +82,22 @@ func (l *ldapConnPool) getConn() (conn *pooledLdapConn, err error) {
 		} else {
 			select {
 			case conn = <-l.pool:
-				if conn.IsAlive() {
-					return conn, nil
-				} else {
-					conn.Conn.Close()
-					return l.newConn(conn.SN)
-				}
+				return l.returnLiveConn(conn)
 			case <-timeout.Done():
 				err = &ers.TimeoutErr{Option: "get ldap conn", Time: timeOut}
 			}
 		}
 	}
 	return
+}
+
+func (l *ldapConnPool) returnLiveConn(conn *pooledLdapConn) (*pooledLdapConn, error) {
+	if conn.IsAlive() {
+		return conn, nil
+	} else {
+		conn.Conn.Close()
+		return l.newConn(conn.SN)
+	}
 }
 
 func (l *ldapConnPool) putConn(conn *pooledLdapConn) {

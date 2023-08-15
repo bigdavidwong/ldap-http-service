@@ -25,7 +25,16 @@ func (e *BaseErr) HttpCode() int {
 }
 
 func (e *BaseErr) Error() string {
-	return "Internal Server Error"
+	return "internal server error"
+}
+
+type SystemErr struct {
+	BaseErr
+	Message string
+}
+
+func (e *SystemErr) Error() string {
+	return fmt.Sprintf("interval server error: %s", e.Message)
 }
 
 type OptErr struct {
@@ -56,7 +65,7 @@ type NotFoundError struct {
 }
 
 func (e *NotFoundError) Error() string {
-	return fmt.Sprintf("no object matched: '%s'", e.Object)
+	return fmt.Sprintf("no object matched '%s'", e.Object)
 }
 
 func (e *NotFoundError) HttpCode() int {
