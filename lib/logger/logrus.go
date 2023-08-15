@@ -41,6 +41,6 @@ func init() {
 	baseLogger.AddHook(hook)
 	baseLogger.SetLevel(logrus.DebugLevel)
 
-	GinLogger = baseLogger.WithField("logger_name", "GinLogger")
-	LdapLogger = baseLogger.WithField("logger_name", "LdapLogger")
+	GinLogger = baseLogger.WithField("logger", "GinLogger")
+	LdapLogger = baseLogger.WithField("logger", "LdapLogger")
 }
