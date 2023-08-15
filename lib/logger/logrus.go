@@ -38,7 +38,6 @@ func init() {
 	hook := NewLogTrace()
 
 	baseLogger := logrus.New()
-	baseLogger.SetFormatter(&logrus.JSONFormatter{})
 	baseLogger.AddHook(hook)
 	baseLogger.SetLevel(logrus.DebugLevel)
 
