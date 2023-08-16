@@ -1,8 +1,7 @@
 package logger
 
 import (
-	"bytes"
-	"fmt"
+	"encoding/json"
 	"github.com/sirupsen/logrus"
 	"strings"
 )
@@ -19,54 +18,31 @@ func (hook LogTrace) Levels() []logrus.Level {
 	return logrus.AllLevels
 }
 
-type MyFormatter struct{}
+type UpperCaseJSONFormatter struct {
+	logrus.JSONFormatter
+}
 
-func (m *MyFormatter) Format(entry *logrus.Entry) ([]byte, error) {
-	var b *bytes.Buffer
-	if entry.Buffer != nil {
-		b = entry.Buffer
-	} else {
-		b = &bytes.Buffer{}
+func (f *UpperCaseJSONFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	// 使用默认的JSONFormatter
+	dataBytes, err := f.JSONFormatter.Format(entry)
+	if err != nil {
+		return nil, err
 	}
 
-	level := strings.ToUpper(entry.Level.String()) // 将日志级别转换为大写
-
-	traceIDStr := ""
-	if traceID, ok := entry.Data["trace_id"]; ok {
-		traceIDStr = fmt.Sprintf("%v", traceID) // 如果存在，则添加trace_id字段
-	} else {
-		traceIDStr = "default_" + strings.Repeat("*", 32)
+	// 将JSON解码为map
+	var data map[string]interface{}
+	err = json.Unmarshal(dataBytes, &data)
+	if err != nil {
+		return nil, err
 	}
 
-	loggerStr := ""
-	if logger, ok := entry.Data["logger"]; ok {
-		loggerStr = fmt.Sprintf("%v", logger) // 如果存在，则添加trace_id字段
-	} else {
-		loggerStr = "default"
+	// 修改级别为大写
+	if level, ok := data["level"].(string); ok {
+		data["level"] = strings.ToUpper(level)
 	}
 
-	// 固定字段
-	callerStr := ""
-	if entry.Caller != nil {
-		line := entry.Caller.Line
-		function := entry.Caller.Function
-		callerStr = fmt.Sprintf("caller=%s:%d", function, line)
-	}
-
-	newLog := fmt.Sprintf("[%s] [trace_id=%s] [logger=%s] %s --> ", level, traceIDStr, loggerStr, entry.Message)
-	// 弹性地添加其他标签
-	for key, value := range entry.Data {
-		// 跳过已经添加的字段
-		if key == "trace_id" || key == "logger" {
-			continue
-		}
-		newLog += fmt.Sprintf("%s=%v ", key, value)
-	}
-
-	newLog += fmt.Sprintf("%s\n", callerStr)
-
-	b.WriteString(newLog)
-	return b.Bytes(), nil
+	// 将更改后的map重新编码为JSON
+	return json.Marshal(data)
 }
 
 // Fire 从entry中获取上下文，设置traceID
@@ -93,7 +69,7 @@ func init() {
 	baseLogger := logrus.New()
 	baseLogger.AddHook(hook)
 	baseLogger.SetLevel(logrus.DebugLevel)
-	baseLogger.SetFormatter(&logrus.JSONFormatter{})
+	baseLogger.SetFormatter(&UpperCaseJSONFormatter{})
 	baseLogger.SetReportCaller(true)
 
 	GinLogger = baseLogger.WithField("logger", "gin")
