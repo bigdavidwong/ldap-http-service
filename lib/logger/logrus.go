@@ -68,7 +68,13 @@ func (f *UpperCaseJSONFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	newData["details"] = details
 
 	// 将更改后的map重新编码为JSON
-	return json.Marshal(newData)
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	// 添加换行符
+	return append(jsonBytes, '\n'), nil
 }
 
 // Fire 从entry中获取上下文，设置traceID
