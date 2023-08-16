@@ -38,10 +38,9 @@ func init() {
 	hook := NewLogTrace()
 
 	baseLogger := logrus.New()
-	baseLogger.SetFormatter(&logrus.JSONFormatter{})
 	baseLogger.AddHook(hook)
 	baseLogger.SetLevel(logrus.DebugLevel)
 
-	GinLogger = baseLogger.WithField("logger_name", "GinLogger")
-	LdapLogger = baseLogger.WithField("logger_name", "LdapLogger")
+	GinLogger = baseLogger.WithField("logger", "GinLogger")
+	LdapLogger = baseLogger.WithField("logger", "LdapLogger")
 }
