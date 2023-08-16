@@ -41,8 +41,34 @@ func (f *UpperCaseJSONFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 		data["level"] = strings.ToUpper(level)
 	}
 
+	// 创建一个新的map，包含固定字段和一个名为"details"的新字段，该字段包含所有其他字段
+	newData := make(map[string]interface{})
+
+	// 定义固定字段的集合
+	fixedFields := map[string]bool{
+		"level":    true,
+		"trace_id": true,
+		"msg":      true,
+		"time":     true,
+		"file":     true,
+		"func":     true,
+		"logger":   true,
+	}
+
+	// 将其他所有字段添加到"details"字段
+	details := make(map[string]interface{})
+	for key, value := range data {
+		if fixedFields[key] {
+			newData[key] = value
+		} else {
+			details[key] = value
+		}
+	}
+
+	newData["details"] = details
+
 	// 将更改后的map重新编码为JSON
-	return json.Marshal(data)
+	return json.Marshal(newData)
 }
 
 // Fire 从entry中获取上下文，设置traceID
