@@ -68,7 +68,7 @@ func (f *UpperCaseJSONFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	newData["details"] = details
 
 	// 将更改后的map重新编码为JSON
-	jsonBytes, err := json.Marshal(data)
+	jsonBytes, err := json.Marshal(newData)
 	if err != nil {
 		return nil, err
 	}
