@@ -40,6 +40,7 @@ func init() {
 	baseLogger := logrus.New()
 	baseLogger.AddHook(hook)
 	baseLogger.SetLevel(logrus.DebugLevel)
+	baseLogger.SetFormatter(&logrus.TextFormatter{DisableSorting: false, DisableTimestamp: true})
 
 	GinLogger = baseLogger.WithField("logger", "GinLogger")
 	LdapLogger = baseLogger.WithField("logger", "LdapLogger")
