@@ -93,7 +93,7 @@ func init() {
 	baseLogger := logrus.New()
 	baseLogger.AddHook(hook)
 	baseLogger.SetLevel(logrus.DebugLevel)
-	baseLogger.SetFormatter(&MyFormatter{})
+	baseLogger.SetFormatter(&logrus.JSONFormatter{})
 	baseLogger.SetReportCaller(true)
 
 	GinLogger = baseLogger.WithField("logger", "gin")
