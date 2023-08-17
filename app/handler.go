@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"ldap-http-service/constants"
 	"ldap-http-service/core/ldap"
 	"ldap-http-service/lib/ers"
 	"net/http"
@@ -11,7 +12,8 @@ import (
 func handleHealthz(c *gin.Context) {
 	_, err := ldap.GetUser("Administrator", "sAMAccountName", "")
 	if err != nil {
-		panic(err)
+		_ = c.Error(err)
+		return
 	}
 	JsonWithTraceId(c, http.StatusOK, 0, "ok", map[string]interface{}{})
 }
@@ -21,12 +23,13 @@ func handleCheckAvailability(c *gin.Context) {
 
 	ok, obj, err := ldap.CheckAvailability(name)
 	if err != nil {
-		panic(err)
+		_ = c.Error(err)
+		return
 	}
 	if ok {
 		JsonWithTraceId(c, http.StatusOK, 0, "ok", map[string]interface{}{})
 	} else {
-		JsonWithTraceId(c, http.StatusConflict, 68, "name has been used", map[string]interface{}{"object": obj})
+		JsonWithTraceId(c, http.StatusConflict, constants.CodeObjAlreadyExists, "name has been used", map[string]interface{}{"object": obj})
 	}
 }
 
@@ -37,7 +40,8 @@ func handleGetUser(c *gin.Context) {
 
 	user, err := ldap.GetUser(userId, userIdType, searchBase)
 	if err != nil {
-		panic(err)
+		_ = c.Error(err)
+		return
 	}
 	JsonWithTraceId(c, http.StatusOK, 0, "ok", map[string]interface{}{"user": user})
 }
@@ -52,12 +56,14 @@ func handleNewEnableUser(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&user); err != nil {
-		panic(&ers.InvalidJsonErr{})
+		_ = c.Error(&ers.InvalidJsonErr{})
+		return
 	}
 
 	err := ldap.CreateEnabledUser(c, user.SAMAccountName, user.DisplayName, user.OU, user.Password, user.PrimaryDomain)
 	if err != nil {
-		panic(err)
+		_ = c.Error(err)
+		return
 	}
 	userInfo, _ := ldap.GetUser(user.SAMAccountName, "sAMAccountName", "")
 	JsonWithTraceId(c, http.StatusOK, 0, "ok", map[string]interface{}{"user": userInfo})
@@ -72,13 +78,16 @@ func handleNewGroup(c *gin.Context) {
 		GroupType      int    `json:"groupType"`
 	}
 	if err := c.ShouldBindJSON(&group); err != nil {
-		panic(&ers.InvalidJsonErr{})
+		_ = c.Error(&ers.InvalidJsonErr{})
+		return
 	}
 
 	err := ldap.CreateGroup(c, group.SAMAccountName, group.OU, group.DisplayName, group.Description, group.GroupType)
 	if err != nil {
-		panic(err)
+		_ = c.Error(err)
+		return
 	}
+
 	groupInfo, _ := ldap.GetGroup(group.SAMAccountName, "sAMAccountName", "")
 	JsonWithTraceId(c, http.StatusOK, 0, "ok", map[string]interface{}{"group": groupInfo})
 }
@@ -92,13 +101,16 @@ func handleUserPwd(c *gin.Context) {
 		Password string `json:"password"`
 	}
 	if err := c.ShouldBindJSON(&pwdChanged); err != nil {
-		panic(&ers.InvalidJsonErr{})
+		_ = c.Error(&ers.InvalidJsonErr{})
+		return
 	}
 
 	err := ldap.SetUserPwd(c, userId, userIdType, pwdChanged.Password, searchBase)
 	if err != nil {
-		panic(err)
+		_ = c.Error(err)
+		return
 	}
+
 	JsonWithTraceId(c, http.StatusOK, 0, "ok", nil)
 }
 
@@ -117,12 +129,14 @@ func handleUserUpdate(c *gin.Context) {
 		OU                 string   `json:"OU"`
 	}
 	if err := c.ShouldBindJSON(&userUpdated); err != nil {
-		panic(&ers.InvalidJsonErr{})
+		_ = c.Error(&ers.InvalidJsonErr{})
+		return
 	}
 
 	user, err := ldap.GetUser(userId, userIdType, searchBase)
 	if err != nil {
-		panic(err)
+		_ = c.Error(err)
+		return
 	}
 
 	// 建立一个map来存储要修改的属性
@@ -153,14 +167,16 @@ func handleUserUpdate(c *gin.Context) {
 
 	err = ldap.ModifyObj(user.DistinguishedName, replaceAttr)
 	if err != nil {
-		panic(err)
+		_ = c.Error(err)
+		return
 	}
 
 	// 如果要修改OU，则最后单独修改
 	if userUpdated.OU != "" {
 		err = ldap.MoveObjectToOU(user.DistinguishedName, userUpdated.OU)
 		if err != nil {
-			panic(err)
+			_ = c.Error(err)
+			return
 		}
 	}
 
@@ -176,7 +192,8 @@ func handleGetGroup(c *gin.Context) {
 
 	group, err := ldap.GetGroup(groupId, groupIdType, searchBase)
 	if err != nil {
-		panic(err)
+		_ = c.Error(err)
+		return
 	}
 
 	JsonWithTraceId(c, http.StatusOK, 0, "ok", map[string]interface{}{"group": group})
@@ -193,13 +210,15 @@ func handleGroupMember(c *gin.Context) {
 		RemoveMembers []string `json:"remove_members"`
 	}
 	if err := c.ShouldBindJSON(&memberChanged); err != nil {
-		panic(&ers.InvalidJsonErr{})
+		_ = c.Error(&ers.InvalidJsonErr{})
+		return
 	}
 
 	// 查找群组
 	group, err := ldap.GetGroup(groupId, groupIdType, searchBase)
 	if err != nil {
-		panic(err)
+		_ = c.Error(err)
+		return
 	}
 
 	var (
@@ -259,12 +278,13 @@ func handleGroupUpdate(c *gin.Context) {
 		Mail           string   `json:"mail"`
 	}
 	if err := c.ShouldBindJSON(&groupUpdated); err != nil {
-		panic(&ers.InvalidJsonErr{})
+		_ = c.Error(&ers.InvalidJsonErr{})
 	}
 
 	group, err := ldap.GetGroup(groupId, groupIdType, searchBase)
 	if err != nil {
-		panic(err)
+		_ = c.Error(err)
+		return
 	}
 
 	// 建立一个map来存储要修改的属性
@@ -288,7 +308,8 @@ func handleGroupUpdate(c *gin.Context) {
 
 	err = ldap.ModifyObj(group.DistinguishedName, replaceAttr)
 	if err != nil {
-		panic(err)
+		_ = c.Error(err)
+		return
 	}
 
 	group, _ = ldap.GetGroup(groupId, groupIdType, searchBase)

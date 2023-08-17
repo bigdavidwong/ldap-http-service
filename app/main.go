@@ -20,7 +20,7 @@ func main() {
 
 	// 启动gin并配置中间件等
 	router := gin.New()
-	router.Use(processRequest(logger.GinLogger), ginLog(logger.GinLogger))
+	router.Use(processRequest(logger.GinLogger), ginLog(logger.GinLogger), errorHandler(logger.GinLogger))
 
 	// 使用自定义的Logger的写入Gin日志
 	gin.DefaultWriter = logger.GinLogger.Writer()

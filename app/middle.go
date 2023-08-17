@@ -10,13 +10,12 @@ import (
 	"ldap-http-service/lib/logger"
 	"ldap-http-service/lib/utils"
 	"net/http"
-	"runtime"
 	"runtime/debug"
 	"time"
 )
 
 type ResponseData struct {
-	Code    int         `json:"code"`
+	Code    int         `json:"constants"`
 	Message string      `json:"message"`
 	Data    interface{} `json:"data"`
 	TraceId string      `json:"trace_id"`
@@ -54,31 +53,36 @@ func processRequest(logger *logrus.Entry) gin.HandlerFunc {
 		// panic恢复和异常处理
 		defer func() {
 			if r := recover(); r != nil {
-				_, file, line, _ := runtime.Caller(2)
-				logger.Warning(c, fmt.Sprintf("Recover from %s:%d -> %v", file, line, r))
+				logger.Warning(c, fmt.Sprintf("Handler panic! %v", r))
 				logger.Debug(c, string(debug.Stack()))
 
-				var err error
-				switch x := r.(type) {
-				case string:
-					err = errors.New(x)
-				case error:
-					err = x
-				default:
-					err = fmt.Errorf("unknown panic: %v", r)
-				}
-
-				var customErr ers.CustomErr
-				if errors.As(err, &customErr) {
-					JsonWithTraceId(c, customErr.HttpCode(), customErr.Code(), customErr.Error(), nil)
-				} else {
-					// 其他未知错误
-					JsonWithTraceId(c, http.StatusInternalServerError, 1000, "Internal Server Error", map[string]interface{}{})
-				}
+				JsonWithTraceId(c, http.StatusInternalServerError, 1000, "Internal Server Error", map[string]interface{}{})
 			}
 		}()
 
 		c.Next()
+	}
+}
+
+func errorHandler(logger *logrus.Entry) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Next()
+
+		if len(c.Errors) > 0 {
+			for _, e := range c.Errors {
+				logger.Errorf("Handler异常：%v", e)
+			}
+
+			// 返回的时候，返回最后一个错误
+			var customErr ers.CustomErr
+
+			if errors.As(c.Errors[0], &customErr) {
+				JsonWithTraceId(c, customErr.HttpCode(), customErr.Code(), customErr.Error(), nil)
+			} else {
+				// 其他未知错误
+				JsonWithTraceId(c, http.StatusInternalServerError, 1000, "Internal Server Error", map[string]interface{}{})
+			}
+		}
 	}
 }
 

@@ -2,6 +2,7 @@ package ers
 
 import (
 	"fmt"
+	"ldap-http-service/constants"
 	"net/http"
 	"time"
 )
@@ -17,11 +18,11 @@ type CustomErr interface {
 type BaseErr struct{}
 
 func (e *BaseErr) Code() int {
-	return 1000
+	return constants.CodeInternalException
 }
 
 func (e *BaseErr) HttpCode() int {
-	return 500
+	return http.StatusInternalServerError
 }
 
 func (e *BaseErr) Error() string {
@@ -73,7 +74,7 @@ func (e *NotFoundError) HttpCode() int {
 }
 
 func (e *NotFoundError) Code() int {
-	return 96
+	return constants.CodeObjNotFound
 }
 
 // ObjExistError 对象已存在，冲突错误
@@ -91,7 +92,7 @@ func (e *ObjExistError) HttpCode() int {
 }
 
 func (e *ObjExistError) Code() int {
-	return 68
+	return constants.CodeObjAlreadyExists
 }
 
 // InvalidJsonErr Json请求体异常
