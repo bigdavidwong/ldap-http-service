@@ -17,9 +17,10 @@ var (
 	ldapOnce sync.Once
 )
 
-func initLdapPool() *ldapConnPool {
+// 初始化LDAP连接池
+func initLdapPool(tractx context.Context) *ldapConnPool {
 	ldapOnce.Do(func() {
-		logger.LdapLogger.Info("正在初始化ldap连接池...")
+		logger.LdapLogger.WithContext(tractx).Info("正在初始化ldap连接池...")
 		ldapPool = &ldapConnPool{
 			Host:     config.LdapConfig.Host,
 			Port:     config.LdapConfig.Port,
@@ -35,8 +36,9 @@ func initLdapPool() *ldapConnPool {
 	return ldapPool
 }
 
+// CreateEnabledUser 创建启用LDAP用户
 func CreateEnabledUser(tractx context.Context, sAMAccountName, displayName, OU, password, primaryDomain string) error {
-	initLdapPool()
+	initLdapPool(tractx)
 	// 开始创建用户
 	userFields := logrus.Fields{
 		"sAMAccountName": sAMAccountName,
@@ -89,16 +91,19 @@ func CreateEnabledUser(tractx context.Context, sAMAccountName, displayName, OU, 
 	return nil
 }
 
-func GetUser(userId, userIdType, searchBase string) (User, error) {
-	return initLdapPool().getUser(userId, userIdType, searchBase)
+// GetUser 获取LDAP用户信息
+func GetUser(tractx context.Context, userId, userIdType, searchBase string) (User, error) {
+	return initLdapPool(tractx).getUser(userId, userIdType, searchBase)
 }
 
-func MoveObjectToOU(dn, newOU string) error {
-	return initLdapPool().moveObjectToOU(dn, newOU)
+// MoveObjectToOU 移动LDAP对象到OU
+func MoveObjectToOU(tractx context.Context, dn, newOU string) error {
+	return initLdapPool(tractx).moveObjectToOU(dn, newOU)
 }
 
+// SetUserPwd 设置LDAP用户密码
 func SetUserPwd(tractx context.Context, userId, userIdType, password, searchBase string) error {
-	initLdapPool()
+	initLdapPool(tractx)
 	userFields := logrus.Fields{
 		userIdType: userId,
 	}
@@ -124,12 +129,14 @@ func SetUserPwd(tractx context.Context, userId, userIdType, password, searchBase
 	return nil
 }
 
-func GetGroup(groupId, groupIdType, searchBase string) (Group, error) {
-	return initLdapPool().getGroup(groupId, groupIdType, searchBase)
+// GetGroup 获取LDAP群组信息
+func GetGroup(tractx context.Context, groupId, groupIdType, searchBase string) (Group, error) {
+	return initLdapPool(tractx).getGroup(groupId, groupIdType, searchBase)
 }
 
+// AddGroupMembers 添加LDAP群组成员
 func AddGroupMembers(tractx context.Context, groupId, groupIdType string, userDNs ...string) error {
-	initLdapPool()
+	initLdapPool(tractx)
 	groupFields := logrus.Fields{
 		groupIdType: groupId,
 	}
@@ -160,8 +167,9 @@ func AddGroupMembers(tractx context.Context, groupId, groupIdType string, userDN
 	return nil
 }
 
+// RemoveGroupMembers 移除LDAP群组成员
 func RemoveGroupMembers(tractx context.Context, groupId, groupIdType string, userDNs ...string) error {
-	initLdapPool()
+	initLdapPool(tractx)
 	groupFields := logrus.Fields{
 		groupIdType: groupId,
 	}
@@ -193,8 +201,9 @@ func RemoveGroupMembers(tractx context.Context, groupId, groupIdType string, use
 	return nil
 }
 
+// CreateGroup 创建LDAP群组
 func CreateGroup(tractx context.Context, sAMAccountName, OU, displayName, description string, groupType int) error {
-	initLdapPool()
+	initLdapPool(tractx)
 	groupFields := logrus.Fields{
 		"sAMAccountName": sAMAccountName,
 		"OU":             OU,
@@ -225,10 +234,12 @@ func CreateGroup(tractx context.Context, sAMAccountName, OU, displayName, descri
 	return nil
 }
 
+// ModifyObj 变更LDAP对象
 func ModifyObj(dn string, replaceAttr map[string][]string) error {
 	return ldapPool.modifyObj(dn, replaceAttr)
 }
 
-func CheckAvailability(name string) (bool, *BaseObject, error) {
-	return initLdapPool().checkAvailability(name)
+// CheckAvailability 检查LDAP对象名称可用性
+func CheckAvailability(tractx context.Context, name string) (bool, *BaseObject, error) {
+	return initLdapPool(tractx).checkAvailability(name)
 }

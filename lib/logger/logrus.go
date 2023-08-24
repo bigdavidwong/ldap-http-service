@@ -48,6 +48,7 @@ func (f *UpperCaseJSONFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	fixedFields := map[string]bool{
 		"level":    true,
 		"trace_id": true,
+		"opt":      true,
 		"msg":      true,
 		"time":     true,
 		"file":     true,
@@ -84,9 +85,17 @@ func (f *UpperCaseJSONFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 func (hook LogTrace) Fire(entry *logrus.Entry) error {
 	ctx := entry.Context
 	if ctx != nil {
+		// 从上下文获取一些固定的需要记录的字段
 		traceID := ctx.Value("trace_id")
 		if traceID != nil {
 			entry.Data["trace_id"] = traceID
+		}
+
+		opt := ctx.Value("opt")
+		if opt != nil {
+			entry.Data["opt"] = opt
+		} else {
+			entry.Data["opt"] = "N/A"
 		}
 	}
 	return nil

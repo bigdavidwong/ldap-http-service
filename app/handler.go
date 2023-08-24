@@ -10,7 +10,7 @@ import (
 )
 
 func handleHealthz(c *gin.Context) {
-	_, err := ldap.GetUser("Administrator", "sAMAccountName", "")
+	_, err := ldap.GetUser(c, "Administrator", "sAMAccountName", "")
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -19,9 +19,10 @@ func handleHealthz(c *gin.Context) {
 }
 
 func handleCheckAvailability(c *gin.Context) {
+	c.Set("opt", "检查用户名可用性")
 	name := c.Query("name")
 
-	ok, obj, err := ldap.CheckAvailability(name)
+	ok, obj, err := ldap.CheckAvailability(c, name)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -34,11 +35,12 @@ func handleCheckAvailability(c *gin.Context) {
 }
 
 func handleGetUser(c *gin.Context) {
+	c.Set("opt", "获取LDAP用户信息")
 	userId := c.Param("user_id")
 	userIdType := c.Query("user_id_type")
 	searchBase := c.Query("search_base")
 
-	user, err := ldap.GetUser(userId, userIdType, searchBase)
+	user, err := ldap.GetUser(c, userId, userIdType, searchBase)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -47,6 +49,7 @@ func handleGetUser(c *gin.Context) {
 }
 
 func handleNewEnableUser(c *gin.Context) {
+	c.Set("opt", "创建启用LDAP用户")
 	var user struct {
 		SAMAccountName string `json:"sAMAccountName"`
 		DisplayName    string `json:"displayName"`
@@ -65,34 +68,12 @@ func handleNewEnableUser(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
-	userInfo, _ := ldap.GetUser(user.SAMAccountName, "sAMAccountName", "")
+	userInfo, _ := ldap.GetUser(c, user.SAMAccountName, "sAMAccountName", "")
 	JsonWithTraceId(c, http.StatusOK, 0, "ok", map[string]interface{}{"user": userInfo})
 }
 
-func handleNewGroup(c *gin.Context) {
-	var group struct {
-		DisplayName    string `json:"displayName"`
-		OU             string `json:"OU"`
-		SAMAccountName string `json:"sAMAccountName"`
-		Description    string `json:"description"`
-		GroupType      int    `json:"groupType"`
-	}
-	if err := c.ShouldBindJSON(&group); err != nil {
-		_ = c.Error(&ers.InvalidJsonErr{})
-		return
-	}
-
-	err := ldap.CreateGroup(c, group.SAMAccountName, group.OU, group.DisplayName, group.Description, group.GroupType)
-	if err != nil {
-		_ = c.Error(err)
-		return
-	}
-
-	groupInfo, _ := ldap.GetGroup(group.SAMAccountName, "sAMAccountName", "")
-	JsonWithTraceId(c, http.StatusOK, 0, "ok", map[string]interface{}{"group": groupInfo})
-}
-
 func handleUserPwd(c *gin.Context) {
+	c.Set("opt", "设置LDAP用户密码")
 	userId := c.Param("user_id")
 	userIdType := c.Query("user_id_type")
 	searchBase := c.Query("search_base")
@@ -115,6 +96,7 @@ func handleUserPwd(c *gin.Context) {
 }
 
 func handleUserUpdate(c *gin.Context) {
+	c.Set("opt", "更新LDAP用户信息")
 	userId := c.Param("user_id")
 	userIdType := c.Query("user_id_type")
 	searchBase := c.Query("search_base")
@@ -133,7 +115,7 @@ func handleUserUpdate(c *gin.Context) {
 		return
 	}
 
-	user, err := ldap.GetUser(userId, userIdType, searchBase)
+	user, err := ldap.GetUser(c, userId, userIdType, searchBase)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -173,24 +155,26 @@ func handleUserUpdate(c *gin.Context) {
 
 	// 如果要修改OU，则最后单独修改
 	if userUpdated.OU != "" {
-		err = ldap.MoveObjectToOU(user.DistinguishedName, userUpdated.OU)
+		err = ldap.MoveObjectToOU(c, user.DistinguishedName, userUpdated.OU)
 		if err != nil {
 			_ = c.Error(err)
 			return
 		}
 	}
 
-	user, _ = ldap.GetUser(userId, userIdType, searchBase)
+	user, _ = ldap.GetUser(c, userId, userIdType, searchBase)
 
 	JsonWithTraceId(c, http.StatusOK, 0, "ok", map[string]interface{}{"user": user})
 }
 
 func handleGetGroup(c *gin.Context) {
+	c.Set("opt", "获取LDAP群组信息")
+
 	groupId := c.Param("group_id")
 	groupIdType := c.Query("group_id_type")
 	searchBase := c.Query("search_base")
 
-	group, err := ldap.GetGroup(groupId, groupIdType, searchBase)
+	group, err := ldap.GetGroup(c, groupId, groupIdType, searchBase)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -199,7 +183,33 @@ func handleGetGroup(c *gin.Context) {
 	JsonWithTraceId(c, http.StatusOK, 0, "ok", map[string]interface{}{"group": group})
 }
 
-func handleGroupMember(c *gin.Context) {
+func handleNewGroup(c *gin.Context) {
+	c.Set("opt", "创建LDAP群组")
+	var group struct {
+		DisplayName    string `json:"displayName"`
+		OU             string `json:"OU"`
+		SAMAccountName string `json:"sAMAccountName"`
+		Description    string `json:"description"`
+		GroupType      int    `json:"groupType"`
+	}
+	if err := c.ShouldBindJSON(&group); err != nil {
+		_ = c.Error(&ers.InvalidJsonErr{})
+		return
+	}
+
+	err := ldap.CreateGroup(c, group.SAMAccountName, group.OU, group.DisplayName, group.Description, group.GroupType)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	groupInfo, _ := ldap.GetGroup(c, group.SAMAccountName, "sAMAccountName", "")
+	JsonWithTraceId(c, http.StatusOK, 0, "ok", map[string]interface{}{"group": groupInfo})
+}
+
+func handleGroupMemberUpdate(c *gin.Context) {
+	c.Set("opt", "更新LDAP群组成员")
+
 	groupId := c.Param("group_id")
 	groupIdType := c.Query("group_id_type")
 	memberIdType := c.Query("member_id_type")
@@ -215,7 +225,7 @@ func handleGroupMember(c *gin.Context) {
 	}
 
 	// 查找群组
-	group, err := ldap.GetGroup(groupId, groupIdType, searchBase)
+	group, err := ldap.GetGroup(c, groupId, groupIdType, searchBase)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -230,7 +240,7 @@ func handleGroupMember(c *gin.Context) {
 	var user ldap.User
 
 	for _, am := range memberChanged.AddMembers {
-		user, err = ldap.GetUser(am, memberIdType, searchBase)
+		user, err = ldap.GetUser(c, am, memberIdType, searchBase)
 		if err != nil {
 			message = fmt.Sprintf("%s;add failed: %s", message, err.Error())
 			continue
@@ -239,7 +249,7 @@ func handleGroupMember(c *gin.Context) {
 	}
 
 	for _, rm := range memberChanged.RemoveMembers {
-		user, err = ldap.GetUser(rm, memberIdType, searchBase)
+		user, err = ldap.GetUser(c, rm, memberIdType, searchBase)
 		if err != nil {
 			message = fmt.Sprintf("%s;remove failed: %s", message, err.Error())
 			continue
@@ -262,11 +272,13 @@ func handleGroupMember(c *gin.Context) {
 		}
 	}
 
-	group, _ = ldap.GetGroup(groupId, groupIdType, searchBase)
+	group, _ = ldap.GetGroup(c, groupId, groupIdType, searchBase)
 	JsonWithTraceId(c, http.StatusOK, 0, message, map[string]interface{}{"group": group})
 }
 
 func handleGroupUpdate(c *gin.Context) {
+	c.Set("opt", "更新LDAP群组信息")
+
 	groupId := c.Param("group_id")
 	groupIdType := c.Query("group_id_type")
 	searchBase := c.Query("search_base")
@@ -281,7 +293,7 @@ func handleGroupUpdate(c *gin.Context) {
 		_ = c.Error(&ers.InvalidJsonErr{})
 	}
 
-	group, err := ldap.GetGroup(groupId, groupIdType, searchBase)
+	group, err := ldap.GetGroup(c, groupId, groupIdType, searchBase)
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -312,7 +324,7 @@ func handleGroupUpdate(c *gin.Context) {
 		return
 	}
 
-	group, _ = ldap.GetGroup(groupId, groupIdType, searchBase)
+	group, _ = ldap.GetGroup(c, groupId, groupIdType, searchBase)
 
 	JsonWithTraceId(c, http.StatusOK, 0, "ok", map[string]interface{}{"group": group})
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/go-ldap/ldap"
 	"ldap-http-service/lib/ers"
-	"ldap-http-service/lib/logger"
 	"ldap-http-service/lib/utils"
 	"reflect"
 	"strings"
@@ -63,8 +62,6 @@ func (b *BaseObject) ReturnBaseObj() *BaseObject {
 func (l *ldapConnPool) checkAvailability(name string) (bool, *BaseObject, error) {
 	// 声明结构体，如果查到了已被使用的对象则将其属性反序列化至此结构体
 	var obj BaseObject
-
-	logger.LdapLogger.Debugf("正在校验用户名 `%s` 的可用性...", name)
 
 	// 如果为空，则返回异常
 	if name == "" {

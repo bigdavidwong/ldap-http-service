@@ -41,7 +41,7 @@ func main() {
 	router.GET("/ldap/group/:group_id", handleGetGroup)
 	router.POST("/ldap/group", handleNewGroup)
 	router.PATCH("/ldap/group/:group_id", handleGroupUpdate)
-	router.PUT("/ldap/group/:group_id/member", handleGroupMember)
+	router.PUT("/ldap/group/:group_id/member", handleGroupMemberUpdate)
 
 	// 启动http服务
 	srv := &http.Server{

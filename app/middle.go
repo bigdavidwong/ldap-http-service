@@ -47,6 +47,7 @@ func processRequest(logger *logrus.Entry) gin.HandlerFunc {
 		if traceID == "" {
 			// 如果 Header 中不存在 "trace_id"，则自动生成
 			traceID = utils.GenUuid("req")
+			fmt.Printf("正在设置trace_id.........%s\n", traceID)
 		}
 		c.Set("trace_id", traceID)
 
@@ -70,7 +71,7 @@ func errorHandler(logger *logrus.Entry) gin.HandlerFunc {
 
 		if len(c.Errors) > 0 {
 			for _, e := range c.Errors {
-				logger.Errorf("Handler异常：%v", e)
+				logger.WithContext(c).Errorf("Handler异常：%v", e)
 			}
 
 			// 返回的时候，返回最后一个错误
@@ -89,25 +90,31 @@ func errorHandler(logger *logrus.Entry) gin.HandlerFunc {
 // ginLog 日志中间件，记录请求概要信息
 func ginLog(logger *logrus.Entry) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		reqInfo := logrus.Fields{
-			"ip":         c.ClientIP(),
-			"method":     c.Request.Method,
-			"user_agent": c.Request.UserAgent(),
-			"path":       c.Request.URL.Path,
-			"params":     c.Request.URL.Query(),
-		}
-		logger.WithContext(c).WithFields(reqInfo).Info("收到http请求")
-		// 开始计时
-		startTime := time.Now()
+		// 仅记录健康探活接口以外的api请求信息
+		if c.Request.URL.Path != "/ldap/healthz" {
+			reqInfo := logrus.Fields{
+				"ip":         c.ClientIP(),
+				"method":     c.Request.Method,
+				"user_agent": c.Request.UserAgent(),
+				"path":       c.Request.URL.Path,
+				"params":     c.Request.URL.Query(),
+			}
+			logger.WithContext(c).WithFields(reqInfo).Info("收到http请求")
+			// 开始计时
+			startTime := time.Now()
 
-		// 处理请求
-		c.Next()
+			// 处理请求
+			c.Next()
 
-		// 计算请求处理时间
-		retInfo := logrus.Fields{
-			"status":   c.Writer.Status(),
-			"duration": time.Since(startTime),
+			// 计算请求处理时间
+			retInfo := logrus.Fields{
+				"status":   c.Writer.Status(),
+				"duration": time.Since(startTime),
+			}
+			logger.WithContext(c).WithFields(retInfo).Info("http请求已处理")
+		} else {
+			c.Next()
 		}
-		logger.WithContext(c).WithFields(retInfo).Info("http请求已处理")
+
 	}
 }
